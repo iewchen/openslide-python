@@ -43,7 +43,9 @@ from ctypes import (
     c_int32,
     c_int64,
     c_size_t,
+    c_uint8,
     c_uint32,
+    c_uint64,
     c_void_p,
     cdll,
 )
@@ -252,6 +254,16 @@ def _load_image(buf: _Buffer, size: tuple[int, int]) -> Image.Image:
     return Image.frombuffer('RGBA', size, buf, 'raw', 'RGBA', 0, 1)
 
 
+def _load_image_gray(buf: _Buffer, size: tuple[int, int],
+                     mode: str) -> Image.Image:
+    '''
+    buf must be a mutable buffer
+    mode is a string define Pillow pixel type and depth. Use 'I;16' for 16 bit
+    gray; 'L' for 8 bit gray.
+    '''
+    return Image.frombuffer(mode, size, buf, 'raw', mode, 0, 1)
+
+
 # check for errors opening an image file and wrap the resulting handle
 def _check_open(result: int | None, _func: Any, _args: Any) -> _OpenSlide:
     if result is None:
@@ -442,6 +454,46 @@ def read_region(
     buf = (w * h * c_uint32)()
     _read_region(slide, buf, x, y, level, w, h)
     return _load_image(buf, (w, h))
+
+
+_read_region_gray8 = _func('openslide_read_region_gray8', None,
+                           [_OpenSlide, POINTER(c_uint8), c_int64, c_int64,
+                           c_int32, c_int64, c_int64])
+def read_region_gray8(slide: _OpenSlide, x: int, y: int,
+                      level: int, w: int, h: int) -> Image.Image:
+    if w < 0 or h < 0:
+        # OpenSlide would catch this, but not before we tried to allocate
+        # a negative-size buffer
+        raise OpenSlideError(
+                "negative width (%d) or negative height (%d) not allowed" % (
+                w, h))
+    mode = 'L'
+    if w == 0 or h == 0:
+        # PIL.Image.frombuffer() would raise an exception
+        return Image.new(mode, (w, h))
+    buf = (w * h * 1 * c_uint8)()
+    _read_region_gray8(slide, buf, x, y, level, w, h)
+    return _load_image_gray(buf, (w, h), mode)
+
+
+_read_region_gray16 = _func('openslide_read_region_gray16', None,
+                            [_OpenSlide, POINTER(c_uint8), c_int64, c_int64,
+                            c_int32, c_int64, c_int64])
+def read_region_gray16(slide: _OpenSlide, x: int, y: int,
+                       level: int, w: int, h: int) -> Image.Image:
+    if w < 0 or h < 0:
+        # OpenSlide would catch this, but not before we tried to allocate
+        # a negative-size buffer
+        raise OpenSlideError(
+                "negative width (%d) or negative height (%d) not allowed" % (
+                w, h))
+    mode = 'I;16'  # 16-bit unsigned integer pixels
+    if w == 0 or h == 0:
+        # PIL.Image.frombuffer() would raise an exception
+        return Image.new(mode, (w, h))
+    buf = (w * h * 2 * c_uint8)()
+    _read_region_gray16(slide, buf, x, y, level, w, h)
+    return _load_image_gray(buf, (w, h), mode)
 
 
 get_icc_profile_size: _Func[[_OpenSlide], int] = _func(

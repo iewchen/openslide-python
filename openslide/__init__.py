@@ -161,6 +161,36 @@ class AbstractSlide(metaclass=ABCMeta):
         size:     (width, height) tuple giving the region size."""
         raise NotImplementedError
 
+    @abstractmethod
+    def read_region_gray8(
+        self, location: tuple[int, int], channel: int, level: int,
+        size: tuple[int, int]
+    ) -> Image.Image:
+        """Return a PIL.Image containing the contents of the region.
+
+        location: (x, y) tuple giving the top left pixel in the level 0
+                  reference frame.
+        channel:  the channel number.
+        level:    the level number.
+        size:     (width, height) tuple giving the region size."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def read_region_gray16(
+        self, location: tuple[int, int], channel: int, level: int,
+        size: tuple[int, int]
+    ) -> Image.Image:
+        """Return a PIL.Image containing the contents of the region.
+
+        location: (x, y) tuple giving the top left pixel in the level 0
+                  reference frame.
+        channel:  the channel number.
+        level:    the level number.
+        size:     (width, height) tuple giving the region size."""
+        raise NotImplementedError
+
+
+
     def set_cache(self, cache: OpenSlideCache) -> None:  # noqa: B027
         """Use the specified cache to store recently decoded slide tiles.
 
@@ -284,6 +314,40 @@ class OpenSlide(AbstractSlide):
         if self._profile is not None:
             region.info['icc_profile'] = self._profile
         return region
+
+    def read_region_gray8(
+            self, location: tuple[int, int], channel: int, level: int,
+            size: tuple[int, int]
+    ) -> Image.Image:
+        """Return a PIL.Image containing the contents of the region.
+
+        location: (x, y) tuple giving the top left pixel in the level 0
+                  reference frame.
+        channel:  the channel number.
+        level:    the level number.
+        size:     (width, height) tuple giving the region size.
+
+        Unlike in the C interface, the image data returned by this
+        function is not premultiplied.
+
+        In OpenSlide, the levels array is sorted by channel, then by downsample,
+        i.e  [top level of ch0, 2nd level of ch0, ...
+              top level of ch1, 2nd level of ch1, ...
+              ...
+              ]
+        therefore the actual index of a level
+           = channel * nlevel_in_one_channel + level
+        """
+        return lowlevel.read_region_gray8(self._osr, location[0], location[1],
+                    channel * self.level_count + level, size[0], size[1])
+
+    def read_region_gray16(
+            self, location: tuple[int, int], channel: int, level: int,
+            size: tuple[int, int]
+    ) -> Image.Image:
+        """ arguments are similar to read_region_gray8 """
+        return lowlevel.read_region_gray16(self._osr, location[0], location[1],
+                    channel * self.level_count + level, size[0], size[1])
 
     def set_cache(self, cache: OpenSlideCache) -> None:
         """Use the specified cache to store recently decoded slide tiles.
