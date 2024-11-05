@@ -176,6 +176,26 @@ class DeepZoomGenerator:
         """The total number of Deep Zoom tiles in the image."""
         return sum(t_cols * t_rows for t_cols, t_rows in self._t_dimensions)
 
+    def get_tile_gray8(self, channel: int, level: int,
+                       address: tuple[int, int]) -> Image.Image:
+        """Return an 8 bit PIL.Image for a tile.
+
+        channel:   gray channel
+        level:     the Deep Zoom level.
+        address:   the address of the tile within the level as a (col, row)
+                   tuple."""
+
+        # Read tile
+        args, z_size = self._get_tile_info(level, address)
+        l0_location, slide_level, l_size = args
+        tile = self._osr.read_region_gray8(l0_location, channel, slide_level,
+                                           l_size)
+        # Scale to the correct size
+        if tile.size != z_size:
+            tile.thumbnail(z_size, getattr(Image, 'Resampling', Image).LANCZOS)
+
+        return tile
+
     def get_tile(self, level: int, address: tuple[int, int]) -> Image.Image:
         """Return an RGB PIL.Image for a tile.
 
