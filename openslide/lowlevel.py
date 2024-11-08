@@ -405,6 +405,18 @@ get_level_count: _Func[[_OpenSlide], int] = _func(
     'openslide_get_level_count', c_int32, [_OpenSlide]
 )
 
+get_channel_count: _Func[[_OpenSlide], int] = _func(
+    'openslide_get_channel_count', c_int32, [_OpenSlide]
+)
+
+get_timepoint_count: _Func[[_OpenSlide], int] = _func(
+    'openslide_get_timepoint_count', c_int32, [_OpenSlide]
+)
+
+get_zstack_count: _Func[[_OpenSlide], int] = _func(
+    'openslide_get_zstack_count', c_int32, [_OpenSlide]
+)
+
 _get_level_dimensions: _Func[
     [_OpenSlide, int, _Pointer[c_int64], _Pointer[c_int64]], None
 ] = _func(

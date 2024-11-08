@@ -258,6 +258,21 @@ class OpenSlide(AbstractSlide):
         return lowlevel.get_level_count(self._osr)
 
     @property
+    def channel_count(self) -> int:
+        """The number of channels in the image."""
+        return lowlevel.get_channel_count(self._osr)
+
+    @property
+    def timepoint_count(self) -> int:
+        """The number of time points in the image."""
+        return lowlevel.get_timepoint_count(self._osr)
+
+    @property
+    def zstack_count(self) -> int:
+        """The number of z-stacks in the image."""
+        return lowlevel.get_zstack_count(self._osr)
+
+    @property
     def level_dimensions(self) -> tuple[tuple[int, int], ...]:
         """A tuple of (width, height) tuples, one for each level of the image.
 
@@ -317,7 +332,7 @@ class OpenSlide(AbstractSlide):
 
     def read_region_gray8(
             self, location: tuple[int, int], channel: int, level: int,
-            size: tuple[int, int]
+            size: tuple[int, int], z: int = 0, t: int = 0
     ) -> Image.Image:
         """Return a PIL.Image containing the contents of the region.
 
@@ -326,6 +341,8 @@ class OpenSlide(AbstractSlide):
         channel:  the channel number.
         level:    the level number.
         size:     (width, height) tuple giving the region size.
+        z: z-stack index
+        t: time point index
 
         Unlike in the C interface, the image data returned by this
         function is not premultiplied.
@@ -338,16 +355,28 @@ class OpenSlide(AbstractSlide):
         therefore the actual index of a level
            = channel * nlevel_in_one_channel + level
         """
+        real_level = (
+             z * self.timepoint_count * self.channel_count * self.level_count +
+                                    t * self.channel_count * self.level_count +
+                                                   channel * self.level_count +
+                                                                        level
+        )
         return lowlevel.read_region_gray8(self._osr, location[0], location[1],
-                    channel * self.level_count + level, size[0], size[1])
+                                          real_level, size[0], size[1])
 
     def read_region_gray16(
             self, location: tuple[int, int], channel: int, level: int,
-            size: tuple[int, int]
+            size: tuple[int, int], z: int = 0, t: int = 0
     ) -> Image.Image:
         """ arguments are similar to read_region_gray8 """
+        real_level = (
+             z * self.timepoint_count * self.channel_count * self.level_count +
+                                    t * self.channel_count * self.level_count +
+                                                   channel * self.level_count +
+                                                                        level
+        )
         return lowlevel.read_region_gray16(self._osr, location[0], location[1],
-                    channel * self.level_count + level, size[0], size[1])
+                                           real_level, size[0], size[1])
 
     def set_cache(self, cache: OpenSlideCache) -> None:
         """Use the specified cache to store recently decoded slide tiles.
